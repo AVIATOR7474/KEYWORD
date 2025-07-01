@@ -41,7 +41,6 @@ def process_document(uploaded_file, primary_keywords, secondary_keywords, sensit
 def docx_to_html(doc, primary_keywords, secondary_keywords):
     html_content = []
     
-    # عدادات لتتبع عدد مرات ظهور كل كلمة بحثية كعنوان
     primary_kw_counts = {kw: {'h2': 0, 'h3': 0} for kw in primary_keywords}
     secondary_kw_counts = {kw: {'h2': 0, 'h3': 0} for kw in secondary_keywords}
 
@@ -53,44 +52,22 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
         if not text:
             continue
         
-        # ابدأ بتهريب النص بالكامل
         processed_text = html.escape(text) 
         
-        # قائمة لتتبع الكلمات التي تم تحويلها في هذه الفقرة لتجنب التكرار المباشر
         converted_in_this_paragraph = set()
 
         # معالجة الكلمات البحثية الرئيسية أولاً
-        # الأولوية: H2 ثم H3
         for pk in primary_keywords:
             if pk in converted_in_this_paragraph: 
                 continue
 
             # حاول تحويلها إلى H2
             if primary_kw_counts[pk]['h2'] < MAX_HEADINGS:
-                # استخدم تعبير نمطي للبحث عن الكلمة ككلمة كاملة
-                # وتأكد أنها ليست داخل علامة HTML موجودة بالفعل
-                # هذا التعبير النمطي يبحث عن الكلمة فقط إذا لم تكن محاطة بـ <...>
-                # ولكن الأسهل هو الاعتماد على ترتيب المعالجة
-                
-                # سنقوم بالاستبدال مباشرة، وبما أننا نستخدم html.escape() في البداية،
-                # فإن الكلمات لن تكون داخل علامات HTML بعد.
-                # بعد أول استبدال، ستصبح الكلمة داخل <h2...> أو <h3...>
-                # ولن يتم مطابقتها مرة أخرى بواسطة re.sub للكلمات الأخرى.
-                
-                # البحث عن الكلمة فقط إذا لم تكن جزءًا من علامة HTML
-                # هذا النمط يطابق الكلمة إذا لم تكن مسبوقة بـ < أو متبوعة بـ >
-                # ولكن هذا قد يكون معقدًا. الأبسط هو الاعتماد على ترتيب المعالجة.
-
-                # الطريقة الأبسط: استبدل الكلمة إذا وجدت.
-                # بما أننا نستخدم html.escape() في البداية، فالنص "نظيف".
-                # بعد الاستبدال الأول، ستصبح الكلمة جزءًا من HTML ولن يتم مطابقتها مرة أخرى.
-                
-                # البحث عن الكلمة ككلمة كاملة
                 pattern = r'\b' + re.escape(pk) + r'\b'
                 if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
                         pattern, 
-                        f'<h2 dir="rtl" style="display:inline;">{pk}</h2>', 
+                        f'<h2 dir="rtl" style="display:inline;">{pk}</h2>', # هنا يتم تطبيق display:inline;
                         processed_text, 
                         count=1, 
                         flags=re.IGNORECASE
@@ -99,13 +76,13 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
                     converted_in_this_paragraph.add(pk)
                     continue 
             
-            # حاول تحويلها إلى H3 إذا لم يتم تحويلها إلى H2
+            # حاول تحويلها إلى H3
             if primary_kw_counts[pk]['h3'] < MAX_HEADINGS:
                 pattern = r'\b' + re.escape(pk) + r'\b'
                 if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
                         pattern, 
-                        f'<h3 dir="rtl" style="display:inline;">{pk}</h3>', 
+                        f'<h3 dir="rtl" style="display:inline;">{pk}</h3>', # وهنا أيضًا
                         processed_text, 
                         count=1, 
                         flags=re.IGNORECASE
@@ -114,7 +91,6 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
                     converted_in_this_paragraph.add(pk)
 
         # معالجة الكلمات البحثية الثانوية
-        # الأولوية: H3 ثم H2
         for sk in secondary_keywords:
             if sk in converted_in_this_paragraph:
                 continue
@@ -125,7 +101,7 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
                 if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
                         pattern, 
-                        f'<h3 dir="rtl" style="display:inline;">{sk}</h3>', 
+                        f'<h3 dir="rtl" style="display:inline;">{sk}</h3>', # وهنا أيضًا
                         processed_text, 
                         count=1, 
                         flags=re.IGNORECASE
@@ -134,13 +110,13 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
                     converted_in_this_paragraph.add(sk)
                     continue
 
-            # حاول تحويلها إلى H2 إذا لم يتم تحويلها إلى H3
+            # حاول تحويلها إلى H2
             if secondary_kw_counts[sk]['h2'] < MAX_HEADINGS:
                 pattern = r'\b' + re.escape(sk) + r'\b'
                 if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
                         pattern, 
-                        f'<h2 dir="rtl" style="display:inline;">{sk}</h2>', 
+                        f'<h2 dir="rtl" style="display:inline;">{sk}</h2>', # وهنا أيضًا
                         processed_text, 
                         count=1, 
                         flags=re.IGNORECASE
@@ -156,6 +132,7 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
     <meta charset="UTF-8">
     <title>SEO Optimized Document</title>
     <style>
+        /* هذا الجزء مهم جداً لضمان أن H2 و H3 تظهر inline */
         h2 {{
             display: inline;
             font-size: 1.5rem;
