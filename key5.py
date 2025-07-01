@@ -4,7 +4,7 @@ from docx import Document
 import io
 import html
 import re
-import random # لاستخدام الاختيار العشوائي بين H2 و H3 إذا لزم الأمر
+import random 
 
 st.set_page_config(page_title="SEO Word Document Optimizer", layout="wide")
 
@@ -13,7 +13,7 @@ def main():
     uploaded_file = st.file_uploader("📤 Upload .docx", type=["docx"])
     primary_keywords = st.text_area("Primary Keywords (one per line)", height=100)
     secondary_keywords = st.text_area("Secondary Keywords (one per line)", height=100)
-    sensitivity = st.slider("Heading Sensitivity", 1, 10, 5) # هذا المتغير لم يعد له تأثير مباشر في هذا المنطق
+    sensitivity = st.slider("Heading Sensitivity", 1, 10, 5) 
 
     if uploaded_file and (primary_keywords.strip() or secondary_keywords.strip()):
         if st.button("🔄 Process Document"):
@@ -42,7 +42,6 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
     html_content = []
     
     # عدادات لتتبع عدد مرات ظهور كل كلمة بحثية كعنوان
-    # كل كلمة بحثية ستحتوي على قاموس لتتبع H2 و H3
     primary_kw_counts = {kw: {'h2': 0, 'h3': 0} for kw in primary_keywords}
     secondary_kw_counts = {kw: {'h2': 0, 'h3': 0} for kw in secondary_keywords}
 
@@ -54,36 +53,58 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
         if not text:
             continue
         
-        processed_text = html.escape(text) # ابدأ بتهريب النص بالكامل
+        # ابدأ بتهريب النص بالكامل
+        processed_text = html.escape(text) 
         
         # قائمة لتتبع الكلمات التي تم تحويلها في هذه الفقرة لتجنب التكرار المباشر
         converted_in_this_paragraph = set()
 
         # معالجة الكلمات البحثية الرئيسية أولاً
+        # الأولوية: H2 ثم H3
         for pk in primary_keywords:
-            if pk in converted_in_this_paragraph: # تجنب معالجة نفس الكلمة مرتين في نفس الفقرة
+            if pk in converted_in_this_paragraph: 
                 continue
 
-            # حاول تحويلها إلى H2 إذا لم نصل للحد الأقصى لـ H2
+            # حاول تحويلها إلى H2
             if primary_kw_counts[pk]['h2'] < MAX_HEADINGS:
-                # تحقق مما إذا كانت الكلمة موجودة في النص ولم يتم تحويلها بعد
-                if re.search(r'\b' + re.escape(pk) + r'\b', processed_text, flags=re.IGNORECASE):
+                # استخدم تعبير نمطي للبحث عن الكلمة ككلمة كاملة
+                # وتأكد أنها ليست داخل علامة HTML موجودة بالفعل
+                # هذا التعبير النمطي يبحث عن الكلمة فقط إذا لم تكن محاطة بـ <...>
+                # ولكن الأسهل هو الاعتماد على ترتيب المعالجة
+                
+                # سنقوم بالاستبدال مباشرة، وبما أننا نستخدم html.escape() في البداية،
+                # فإن الكلمات لن تكون داخل علامات HTML بعد.
+                # بعد أول استبدال، ستصبح الكلمة داخل <h2...> أو <h3...>
+                # ولن يتم مطابقتها مرة أخرى بواسطة re.sub للكلمات الأخرى.
+                
+                # البحث عن الكلمة فقط إذا لم تكن جزءًا من علامة HTML
+                # هذا النمط يطابق الكلمة إذا لم تكن مسبوقة بـ < أو متبوعة بـ >
+                # ولكن هذا قد يكون معقدًا. الأبسط هو الاعتماد على ترتيب المعالجة.
+
+                # الطريقة الأبسط: استبدل الكلمة إذا وجدت.
+                # بما أننا نستخدم html.escape() في البداية، فالنص "نظيف".
+                # بعد الاستبدال الأول، ستصبح الكلمة جزءًا من HTML ولن يتم مطابقتها مرة أخرى.
+                
+                # البحث عن الكلمة ككلمة كاملة
+                pattern = r'\b' + re.escape(pk) + r'\b'
+                if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
-                        r'\b' + re.escape(pk) + r'\b', 
+                        pattern, 
                         f'<h2 dir="rtl" style="display:inline;">{pk}</h2>', 
                         processed_text, 
-                        count=1, # استبدال مرة واحدة فقط لكل كلمة في الفقرة
+                        count=1, 
                         flags=re.IGNORECASE
                     )
                     primary_kw_counts[pk]['h2'] += 1
                     converted_in_this_paragraph.add(pk)
-                    continue # انتقل للكلمة التالية بعد التحويل
+                    continue 
             
-            # إذا لم نتمكن من تحويلها إلى H2، حاول تحويلها إلى H3 إذا لم نصل للحد الأقصى لـ H3
+            # حاول تحويلها إلى H3 إذا لم يتم تحويلها إلى H2
             if primary_kw_counts[pk]['h3'] < MAX_HEADINGS:
-                if re.search(r'\b' + re.escape(pk) + r'\b', processed_text, flags=re.IGNORECASE):
+                pattern = r'\b' + re.escape(pk) + r'\b'
+                if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
-                        r'\b' + re.escape(pk) + r'\b', 
+                        pattern, 
                         f'<h3 dir="rtl" style="display:inline;">{pk}</h3>', 
                         processed_text, 
                         count=1, 
@@ -93,17 +114,17 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
                     converted_in_this_paragraph.add(pk)
 
         # معالجة الكلمات البحثية الثانوية
-        # يجب أن تكون الكلمات الثانوية لا تتداخل مع الكلمات الرئيسية التي تم تحويلها بالفعل
+        # الأولوية: H3 ثم H2
         for sk in secondary_keywords:
             if sk in converted_in_this_paragraph:
                 continue
 
-            # حاول تحويلها إلى H3 إذا لم نصل للحد الأقصى لـ H3
+            # حاول تحويلها إلى H3
             if secondary_kw_counts[sk]['h3'] < MAX_HEADINGS:
-                # استخدم lookbehind و lookahead لتجنب التداخل مع علامات HTML الموجودة
-                if re.search(r'(?<!<h[23][^>]*?>)\b' + re.escape(sk) + r'\b(?!</h[23]>)', processed_text, flags=re.IGNORECASE):
+                pattern = r'\b' + re.escape(sk) + r'\b'
+                if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
-                        r'(?<!<h[23][^>]*?>)\b' + re.escape(sk) + r'\b(?!</h[23]>)', 
+                        pattern, 
                         f'<h3 dir="rtl" style="display:inline;">{sk}</h3>', 
                         processed_text, 
                         count=1, 
@@ -113,11 +134,12 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
                     converted_in_this_paragraph.add(sk)
                     continue
 
-            # إذا لم نتمكن من تحويلها إلى H3، حاول تحويلها إلى H2 إذا لم نصل للحد الأقصى لـ H2
+            # حاول تحويلها إلى H2 إذا لم يتم تحويلها إلى H3
             if secondary_kw_counts[sk]['h2'] < MAX_HEADINGS:
-                if re.search(r'(?<!<h[23][^>]*?>)\b' + re.escape(sk) + r'\b(?!</h[23]>)', processed_text, flags=re.IGNORECASE):
+                pattern = r'\b' + re.escape(sk) + r'\b'
+                if re.search(pattern, processed_text, flags=re.IGNORECASE):
                     processed_text = re.sub(
-                        r'(?<!<h[23][^>]*?>)\b' + re.escape(sk) + r'\b(?!</h[23]>)', 
+                        pattern, 
                         f'<h2 dir="rtl" style="display:inline;">{sk}</h2>', 
                         processed_text, 
                         count=1, 
@@ -128,15 +150,6 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
 
         html_content.append(f"<p dir='rtl'>{processed_text}</p>")
     
-    # بعد معالجة جميع الفقرات، نقوم بمرور إضافي لضمان الوصول إلى الحد الأدنى (MIN_HEADINGS)
-    # هذا الجزء أكثر تعقيدًا وقد يتطلب تعديل الفقرات الموجودة أو إضافة فقرات جديدة
-    # ولكن لتبسيط الكود، سنفترض أن المستند طويل بما يكفي لتحقيق ذلك بشكل طبيعي
-    # أو أننا سنكتفي بالوصول إلى الحد الأقصى الممكن ضمن النص الموجود.
-    # إذا لم يتم الوصول إلى MIN_HEADINGS، يمكننا هنا إضافة منطق لإعادة فحص النص
-    # أو إدراج الكلمات البحثية في أماكن مناسبة.
-    # ولكن هذا يتجاوز نطاق التعديل الحالي الذي يركز على عدم التأثير على باقي الفقرة.
-    # حاليًا، الكود سيحاول الوصول إلى MAX_HEADINGS قدر الإمكان.
-
     return f"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -148,7 +161,7 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
             font-size: 1.5rem;
             margin: 0;
             padding: 0;
-            color: #2E86AB; /* لون أزرق مميز */
+            color: #2E86AB; 
             font-weight: bold;
         }}
         h3 {{
@@ -156,7 +169,7 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
             font-size: 1.2rem;
             margin: 0;
             padding: 0;
-            color: #A23B72; /* لون بنفسجي مميز */
+            color: #A23B72; 
             font-weight: bold;
         }}
         p {{
