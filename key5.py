@@ -45,19 +45,25 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
         if not text:
             continue
         
-        processed_text = html.escape(text) # ابدأ بتهريب النص بالكامل لتجنب مشاكل HTML
+        # ابدأ بتهريب النص بالكامل لتجنب مشاكل HTML
+        processed_text = html.escape(text) 
         
         # معالجة الكلمات البحثية الرئيسية
+        # يجب أن تكون الكلمات البحثية الرئيسية ذات أولوية أعلى
         for pk in primary_keywords:
-            # استخدم re.sub للبحث عن الكلمة بالكامل وتغليفها
+            # استخدم re.sub للبحث عن الكلمة بالكامل وتغليفها بـ <h2>
             # r'\b' يضمن مطابقة الكلمة بالكامل (حدود الكلمة)
-            processed_text = re.sub(r'\b' + re.escape(pk) + r'\b', f'<span class="primary-keyword">{pk}</span>', processed_text, flags=re.IGNORECASE)
+            # flags=re.IGNORECASE يجعل المطابقة غير حساسة لحالة الأحرف
+            processed_text = re.sub(r'\b' + re.escape(pk) + r'\b', f'<h2 dir="rtl" style="display:inline;">{pk}</h2>', processed_text, flags=re.IGNORECASE)
         
         # معالجة الكلمات البحثية الثانوية
+        # تأكد من أن الكلمات الثانوية لا تتداخل مع الكلمات الرئيسية التي تم تحويلها بالفعل
         for sk in secondary_keywords:
-            processed_text = re.sub(r'\b' + re.escape(sk) + r'\b', f'<span class="secondary-keyword">{sk}</span>', processed_text, flags=re.IGNORECASE)
+            # تأكد من عدم استبدال الكلمات التي أصبحت جزءًا من <h2> بالفعل
+            # هذا النمط يضمن أننا لا نطابق داخل علامات HTML الموجودة
+            processed_text = re.sub(r'(?<!<h[23][^>]*?>)\b' + re.escape(sk) + r'\b(?!</h[23]>)', f'<h3 dir="rtl" style="display:inline;">{sk}</h3>', processed_text, flags=re.IGNORECASE)
         
-        # دائمًا ضع النص داخل فقرة <p>
+        # دائمًا ضع النص الناتج داخل فقرة <p>
         html_content.append(f"<p dir='rtl'>{processed_text}</p>")
     
     return f"""<!DOCTYPE html>
@@ -66,20 +72,20 @@ def docx_to_html(doc, primary_keywords, secondary_keywords):
     <meta charset="UTF-8">
     <title>SEO Optimized Document</title>
     <style>
-        /* أنماط اختيارية لتمييز الكلمات البحثية داخل النص */
-        .primary-keyword {{
-            font-weight: bold;
-            color: #2E86AB; /* لون أزرق مميز */
-            background-color: #E0F2F7; /* خلفية فاتحة */
-            padding: 2px 4px;
-            border-radius: 3px;
+        /* أنماط اختيارية لجعل العناوين تظهر في نفس السطر */
+        h2 {{
+            display: inline; /* يجعل h2 يظهر في نفس السطر */
+            font-size: 1.5rem; /* حجم الخط */
+            margin: 0; /* إزالة الهوامش الافتراضية */
+            padding: 0; /* إزالة الحشوة الافتراضية */
+            color: #2E86AB; /* لون اختياري */
         }}
-        .secondary-keyword {{
-            font-weight: bold;
-            color: #A23B72; /* لون بنفسجي مميز */
-            background-color: #F7E0ED; /* خلفية فاتحة */
-            padding: 2px 4px;
-            border-radius: 3px;
+        h3 {{
+            display: inline; /* يجعل h3 يظهر في نفس السطر */
+            font-size: 1.2rem; /* حجم الخط */
+            margin: 0; /* إزالة الهوامش الافتراضية */
+            padding: 0; /* إزالة الحشوة الافتراضية */
+            color: #A23B72; /* لون اختياري */
         }}
         p {{
             margin-bottom: 1rem;
